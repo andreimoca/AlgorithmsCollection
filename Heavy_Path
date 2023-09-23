@@ -1,0 +1,151 @@
+// https://www.infoarena.ro/problema/heavypath
+// Moca Andrei - 100p
+
+#include <bits/stdc++.h>
+using namespace std;
+
+using VI  = vector<int>;
+using VVI = vector<VI>;
+
+string const& task("heavypath");
+ifstream fin(task + ".in");
+ofstream fout(task + ".out");
+
+class SegTree {
+public:
+    SegTree(VI const& v) {
+        int n = static_cast<int>(v.size());
+        for (N = 1; N < n; N *= 2);
+        tree = VI(2 * N);
+        for (int i = 0; i < n; ++i)
+            tree[i + N] = v[i];
+        for (int i = N - 1; i > 0; --i)
+            tree[i] = max(tree[2 * i], tree[2 * i + 1]);
+    }
+    inline void Update(int const& pos, int const& val) {
+        int p = pos + N;
+        tree[p] = val;
+        for (p /= 2; p; p /= 2)
+            tree[p] = max(tree[2 * p], tree[2 * p + 1]);
+    }
+    inline int Query(int const& st, int const& dr) const {
+        int l = st + N, r = dr + N, res = 0;
+        while (l <= r) {
+            res = max({res, tree[l], tree[r]});
+            l = (l + 1) / 2;
+            r = (r - 1) / 2;
+        }
+        return res;
+    }
+private:
+    int N;
+    VI tree;
+};
+
+class HeavyPath {
+public:
+    HeavyPath(int const& _n = 0)
+        : n(_n), g(n + 1), nr(n + 1), t(n + 1), h(n + 1), pos(n + 1), pId(n + 1) {}
+
+    inline void Compute(int const& op, int const& x, int const& y) {
+        if (op == 0)
+            Update(x, y);
+        if (op == 1)
+            fout << Query(x, y) << '\n';
+    }
+
+    inline void SetValues(VI const& _v) {
+        v = _v;
+    }
+
+    inline void AddEdge(int const& x, int const& y) {
+        g[x].emplace_back(y);
+        g[y].emplace_back(x);
+    }
+
+    inline void BuildHP() {
+        DFS();
+
+        for (VI const& path : paths) {
+            VI values;
+            for (int const& node : path)
+                values.emplace_back(v[node]);
+            st.emplace_back(SegTree(values));
+        }
+    }
+private:
+    inline void Update(int const& x, int const& val) {
+        v[x] = val;
+        st[pId[x]].Update(pos[x], val);
+    }
+
+    inline int Query(int const& _x, int const& _y) const {
+        int x = _x, y = _y;
+
+        if (pId[x] == pId[y]) {
+            if (pos[x] > pos[y])
+                swap(x, y);
+            return st[pId[x]].Query(pos[x], pos[y]);
+        }
+
+        if (h[paths[pId[x]].back()] < h[paths[pId[y]].back()])
+            swap(x, y);
+
+        int r1 = st[pId[x]].Query(pos[x], static_cast<int>(paths[pId[x]].size()) - 1);
+        int r2 = Query(t[paths[pId[x]].back()], y);
+        return max(r1, r2);
+    }
+
+    inline void DFS(int const& x = 1) {
+        int hs = 0;
+        nr[x] = 1;
+
+        for (int const& y : g[x]) {
+            if (y == t[x])
+                continue;
+            t[y] = x;
+            h[y] = h[x] + 1;
+            DFS(y);
+            nr[x] += nr[y];
+            if (nr[y] > nr[hs])
+                hs = y;
+        }
+        if (!hs) {
+            pId[x] = static_cast<int>(paths.size());
+            paths.emplace_back(VI());
+        }
+        else pId[x] = pId[hs];
+
+        pos[x] = static_cast<int>(paths[pId[x]].size());
+        paths[pId[x]].emplace_back(x);
+    }
+
+    int n;
+    VVI g, paths;
+    VI v, nr, t, h, pos, pId;
+    vector<SegTree> st;
+};
+
+int main() {
+    int n, q;
+    fin >> n >> q;
+    VI v(n + 1);
+    for (int i = 1; i <= n; ++i)
+        fin >> v[i];
+
+    HeavyPath HP(n);
+    HP.SetValues(v);
+    for (int i = 1; i < n; ++i) {
+        int x, y;
+        fin >> x >> y;
+        HP.AddEdge(x, y);
+    }
+    HP.BuildHP();
+    while (q--) {
+        int op, x, y;
+        fin >> op >> x >> y;
+        HP.Compute(op, x, y);
+    }
+
+    return 0;
+}
