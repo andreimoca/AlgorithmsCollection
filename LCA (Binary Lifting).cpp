@@ -1,3 +1,6 @@
+// https://www.infoarena.ro/problema/lca
+// Moca Andrei - 100p
+
 #include <bits/stdc++.h>
 using namespace std;
 const int NMAX(1e5 + 5), LMAX(17);
